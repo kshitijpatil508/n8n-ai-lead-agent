@@ -2,6 +2,8 @@
 
 **A robust n8n workflow that captures leads from a web form, validates them, and syncs them across Zoho CRM, HubSpot, Google Sheets, and a local Postgres database.**
 
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Click_Here-blue?style=for-the-badge&logo=googleforms)](https://kpn8n.duckdns.org/form/418732f9-aab6-4aae-8bff-0a8a8318e4b9)
+
 ---
 
 ## 📖 Overview
@@ -10,8 +12,6 @@ Managing leads across multiple platforms is tedious. **FORM to CRM** automates t
 When a user submits the lead generation form, this workflow validates their data (checking email formats and phone numbers) and distributes the lead to **three** different systems simultaneously (Zoho, HubSpot, Google Sheets).
 
 It also acts as a "Quality Gate" by filtering invalid entries into a separate `failed_leads` database table. Finally, it uses Generative AI (Gemini/Groq) to draft a professional summary email and notifies the admin/sales team instantly.
-
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Click_Here-blue?style=for-the-badge&logo=googleforms)](https://kpn8n.duckdns.org/form/418732f9-aab6-4aae-8bff-0a8a8318e4b9)
 
 ---
 
