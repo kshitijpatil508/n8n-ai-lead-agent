@@ -1,0 +1,741 @@
+{
+  "name": "FORM to CRM",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "FORM LINK: https://kpn8n.duckdns.org/form/418732f9-aab6-4aae-8bff-0a8a8318e4b9"
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -464
+      ],
+      "id": "070875d2-3ea8-4e81-9330-176710e2298a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        640,
+        -32
+      ],
+      "id": "a745c004-030c-493d-a5ae-2c077e5775ba",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "hK4Z7H3xtiWk64OA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        768,
+        -32
+      ],
+      "id": "e9eff700-bd6a-4ca7-a3c8-0a0f59c0334b",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "iLMzVDdHHOFDbpsD",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"email\": \"pakit@gmail.com\",\n  \"Subject\": \"New Lead Generated - HUBSPOTTTT\",\n  \"Body\": \"Dear Admin,\\n\\nA new lead has been generated via Google Form. Below are the details:\\n\\n- ID: 11\\n- Name: hubspot\\n- Email: pakit@gmail.com\\n- Phone: 91291992\\n- Company Name: HUBSPOTTTT\\n- Service: Lead Management\\n- Message: YES REQUIREMENT\\n- Source: google_form\\n- Submitted At: 2025-09-07 09:14:45 UTC\\n\\nPlease take appropriate action.\\n\\nBest regards,\\nAutomated System\"\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        -32
+      ],
+      "id": "7060a8c4-2562-413e-903d-d6f865813a07",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO crm.leads (name, email, phone, company_name, service, message, source)\nVALUES (\n  {{ $json.name ? \"'\" + $json.name.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.email ? \"'\" + $json.email.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{  $json.phone ? \"'\" + $json.phone.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.companyName ? \"'\" + $json.companyName.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.service ? \"'\" + $json.service.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  {{ $json.message ? \"'\" + $json.message.replace(/'/g, \"''\") + \"'\" : 'NULL' }},\n  'google_form'\n)\nON CONFLICT (email) DO NOTHING;\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -256,
+        -160
+      ],
+      "id": "b985f989-5ed5-411a-9dd7-2dd6d93a96e1",
+      "name": "Insert Leads to Local Database",
+      "credentials": {
+        "postgres": {
+          "id": "IWvIM9Rk7WqEN0ng",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, name, email, phone, company_name, service, message, source, submitted_at\nFROM crm.leads\nWHERE email = $1\nORDER BY submitted_at DESC\nLIMIT 1;\n",
+        "options": {
+          "queryReplacement": "={{ $node[\"Check Valid Email\"].json.email }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -32,
+        -160
+      ],
+      "id": "22b207c9-a5a2-4ef6-b7fa-d70d6cad96cd",
+      "name": "Get details by Email ID",
+      "credentials": {
+        "postgres": {
+          "id": "IWvIM9Rk7WqEN0ng",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO crm.failed_leads (payload, error)\nVALUES (\n  '{{ JSON.stringify($json).replace(/'/g, \"''\") }}',\n  'Validation failed: missing or invalid fields'\n);\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -256,
+        32
+      ],
+      "id": "4c59a8ee-23e9-4d04-8de4-a005240582f5",
+      "name": "Insert Faulty Leads to other table",
+      "credentials": {
+        "postgres": {
+          "id": "IWvIM9Rk7WqEN0ng",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "9845900c-ed2a-40e0-8349-202779a0ff5b",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        -64
+      ],
+      "id": "e09ec3a5-2218-486b-8959-51e7ad435078",
+      "name": "Check Valid Email"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = {\n  name: $input.first().json[\"Full Name\"]|| \"Unknown\",\n  email: $input.first().json.Email || \"\",\n  phone: $input.first().json[\"Phone Number\"] || \"\",\n  service:  $input.first().json[\"Intrested Services\"]|| \"\",\n  companyName: $input.first().json[\"Company Name\"]|| \"\",\n  message: $input.first().json[\"Message/Requirement\"]|| \"\",\n  source: $input.first().json.formMode\n};\n\n// 1. Email validation\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (!emailRegex.test(data.email)) {\n  return [{ valid: false, error: \"Invalid email\", ...data }];\n}\n\n// 2. Phone normalization (example: keep digits only)\ndata.phone = String(data.phone)\ndata.phone = data.phone.replace(/\\D/g, \"\");\n\n// 3. Pass validated data\nreturn [{ valid: true, ...data }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -704,
+        -64
+      ],
+      "id": "777f7936-9d85-4402-b313-e98908453a6d",
+      "name": "Normalize and Validate Data"
+    },
+    {
+      "parameters": {
+        "resource": "lead",
+        "Company": "={{ $json.company_name }}",
+        "lastName": "={{ $json.name }}",
+        "additionalFields": {
+          "customFields": {
+            "customFields": [
+              {
+                "fieldId": "Message",
+                "value": "={{ $json.message }}"
+              },
+              {
+                "fieldId": "Service_Required",
+                "value": "={{ $json.service }}"
+              },
+              {
+                "fieldId": "Submitted_At",
+                "value": "={{ $json.submitted_at }}"
+              }
+            ]
+          },
+          "Email": "={{ $json.email }}",
+          "Full_Name": "={{ $json.name }}",
+          "Lead_Source": "={{ $json.source }}",
+          "Phone": "={{ $json.phone }}"
+        }
+      },
+      "type": "n8n-nodes-base.zohoCrm",
+      "typeVersion": 1,
+      "position": [
+        192,
+        -352
+      ],
+      "id": "c1ab5b72-03e6-4a7f-a926-7a2664e56fb5",
+      "name": "Create a lead in Zoho",
+      "credentials": {
+        "zohoOAuth2Api": {
+          "id": "lxzQqXQnh6QoYWvP",
+          "name": "Zoho account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1Tq_dYqlTQy8d8RiH_K56-wRhC9z5-G1D_HCmEfcHX-I",
+          "mode": "list",
+          "cachedResultName": "P1 - Cleaned Lead Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Tq_dYqlTQy8d8RiH_K56-wRhC9z5-G1D_HCmEfcHX-I/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1Tq_dYqlTQy8d8RiH_K56-wRhC9z5-G1D_HCmEfcHX-I/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.id }}",
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Phone": "={{ $json.phone }}",
+            "Company Name": "={{ $json.company_name }}",
+            "Service": "={{ $json.service }}",
+            "Message": "={{ $json.message }}",
+            "Source ": "={{ $json.source }}",
+            "Submitted At": "={{ $json.submitted_at }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone",
+              "displayName": "Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Service",
+              "displayName": "Service",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Source ",
+              "displayName": "Source ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Submitted At",
+              "displayName": "Submitted At",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        192,
+        -160
+      ],
+      "id": "aeadde31-0cf3-469d-80c6-3c0849ac19c7",
+      "name": "Append Lead in Google Sheet",
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AxWRS8k6Ip0OAd2h",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "email": "={{ $json.email }}",
+        "additionalFields": {
+          "companyName": "={{ $json.company_name }}",
+          "customPropertiesUi": {
+            "customPropertiesValues": [
+              {
+                "property": "service_required",
+                "value": "={{ $json.service }}"
+              },
+              {
+                "property": "lead_source",
+                "value": "={{ $json.source }}"
+              },
+              {
+                "property": "submitted_at",
+                "value": "={{ $json.submitted_at }}"
+              }
+            ]
+          },
+          "firstName": "={{ $json.name }}",
+          "message": "={{ $json.message }}",
+          "phoneNumber": "={{ $json.phone }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        32
+      ],
+      "id": "f845bb9b-6245-48a1-842c-7cd05de20939",
+      "name": "Create a contact in Hubspot",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "a16JCtYwEO5HYKyv",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "numberInputs": 3,
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        416,
+        -272
+      ],
+      "id": "47de21ca-a75e-4be9-8f24-bd3237f74427",
+      "name": "Wait for all to finish"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an assistant generating notification emails. Create a JSON object with three keys: \"Subject\", \"Body\", and \"Email\". \n\n- The \"Subject\" should be a short, professional subject line about the lead (e.g., including company name).\n- The \"Body\" should be a professional HTML-formatted email addressed to an admin, stating that a new lead has been generated. Present the lead's information in a clean, readable layout using basic HTML and inline styles (e.g., <table>, <strong>, etc.).\n- The \"Email\" should be the same as the lead's email address.\n\nHere’s the lead data:\n\n{\n  \"ID\": {{ $json.ID }},\n  \"Name\": \"{{ $json.Name }}\",\n  \"Email\": \"{{ $json.Email }}\",\n  \"Phone\": \"{{ $json.Phone }}\",\n  \"Company Name\": \"{{ $json[\"Company Name\"] }}\",\n  \"Service\": \"{{ $json.Service }}\",\n  \"Message\": \"{{ $json.Message }}\",\n  \"Source\": \"{{ $json[\"Source \"] }}\",\n  \"Submitted At\": \"{{ $json[\"Submitted At\"] }}\"\n}\n",
+        "hasOutputParser": true,
+        "needsFallback": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        672,
+        -256
+      ],
+      "id": "02f503ee-955e-4860-a422-15373e1b8edf",
+      "name": "Draft a Email using LLM"
+    },
+    {
+      "parameters": {
+        "sendTo": "=drivecnl@gmail.com ,{{ $json.output.email }}",
+        "subject": "={{ $json.output.Subject }}",
+        "message": "={{ $json.output.Body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1264,
+        -256
+      ],
+      "id": "0c2860e5-3e6c-4d37-bd5a-9db3c147c98f",
+      "name": "Send a mail to Admin or Team",
+      "webhookId": "224e1098-c288-4c5d-ac65-2fe7694ac73e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "qGeiSq4izUgI6GI7",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Lead Collector",
+        "formDescription": "Lead Collector For CRM (n8n)\n( please provide your working email id to get the demo email )\n",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Full Name",
+              "placeholder": "Your Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "example@gmail.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Phone Number"
+            },
+            {
+              "fieldLabel": "Company Name"
+            },
+            {
+              "fieldLabel": "Intrested Services",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "CRM Automation"
+                  },
+                  {
+                    "option": "Lead Management"
+                  },
+                  {
+                    "option": "Custom AI Integration"
+                  }
+                ]
+              },
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Message/Requirement",
+              "fieldType": "textarea",
+              "placeholder": "Your Message"
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Thank You For Submitting the Form, Please Check you email"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -928,
+        -64
+      ],
+      "id": "82a36292-220d-4ce3-b89c-6c133bee0d91",
+      "name": "On form submission",
+      "webhookId": "418732f9-aab6-4aae-8bff-0a8a8318e4b9"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        976,
+        176
+      ],
+      "id": "237214ba-43f6-466d-9136-e1b48bb30140",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "hK4Z7H3xtiWk64OA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Draft a Email using LLM",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Draft a Email using LLM",
+            "type": "ai_languageModel",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Draft a Email using LLM",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Leads to Local Database": {
+      "main": [
+        [
+          {
+            "node": "Get details by Email ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get details by Email ID": {
+      "main": [
+        [
+          {
+            "node": "Append Lead in Google Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a contact in Hubspot",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a lead in Zoho",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Valid Email": {
+      "main": [
+        [
+          {
+            "node": "Insert Leads to Local Database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Faulty Leads to other table",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize and Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Check Valid Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a lead in Zoho": {
+      "main": [
+        [
+          {
+            "node": "Wait for all to finish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Lead in Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Wait for all to finish",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Create a contact in Hubspot": {
+      "main": [
+        [
+          {
+            "node": "Wait for all to finish",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Wait for all to finish": {
+      "main": [
+        [
+          {
+            "node": "Draft a Email using LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Draft a Email using LLM": {
+      "main": [
+        [
+          {
+            "node": "Send a mail to Admin or Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Normalize and Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 300,
+    "availableInMCP": false,
+    "errorWorkflow": "nD1MAZ5WgYTzBMgA",
+    "saveExecutionProgress": true
+  },
+  "versionId": "a11f8838-4e4c-4512-b2f9-1111039490e9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5311ef094250faec1bd5441a23b8d1ac577238cb951abed1af715c7fb9250add"
+  },
+  "id": "nD1MAZ5WgYTzBMgA",
+  "tags": []
+}
