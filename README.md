@@ -1,4 +1,4 @@
-# FORM to CRM — Unified Lead Capture & Distribution System 🚀
+# Form to CRM — Unified Lead Capture & Distribution System 🚀
 
 **A robust n8n workflow that captures leads from a web form, validates them, and syncs them across Zoho CRM, HubSpot, Google Sheets, and a local Postgres database.**
 
